@@ -274,7 +274,7 @@ func parse_url_file() []string {
 
 }
 func (m *Monitor) new_product_monitor(client *Client) {
-
+	iteration := 0
 	for {
 		session := <-session_channel
 
@@ -322,13 +322,14 @@ func (m *Monitor) new_product_monitor(client *Client) {
 			}
 			log.Println("[" + m.Client.Region + "]" + "Succesfully made request to products page")
 
-			if len(m.FOUND_SKU) <= 0 {
+			if len(m.FOUND_SKU) <= 0 && iteration == 0 {
 				for _, item := range catalog.Items {
 
 					m.FOUND_SKU = append(m.FOUND_SKU, int(item.ID))
 
 				}
 				log.Println("[" + m.Client.Region + "]" + "First iteration finished")
+				iteration += 1
 				continue
 			}
 			for _, item := range catalog.Items {
