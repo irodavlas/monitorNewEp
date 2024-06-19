@@ -213,6 +213,7 @@ func rotate_proxy(client tls_client.HttpClient) {
 	if err != nil {
 		error_channel <- "Error changing proxies: " + err.Error()
 	}
+	time.Sleep(1 * time.Second)
 
 }
 func parse_proxy_file() {
