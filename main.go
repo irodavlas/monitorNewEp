@@ -245,19 +245,32 @@ func parse_url_file() []string {
 		var url string
 		line := scanner.Text()
 		new := strings.Split(line, "?")
+		var query string
+		if !strings.Contains(new[1], "catalog_ids") {
+			query = strings.Replace(new[1], "catalog", "catalog_ids", 1)
+
+		} else {
+
+			query = new[1]
+		}
 		if strings.Contains(line, "https://www.vinted.co.uk") {
-			url = UK_BASE_URL + "/api/v2/catalog/items?" + new[1]
+			url = UK_BASE_URL + "/api/v2/catalog/items?" + query
 		}
 		if strings.Contains(line, "https://www.vinted.fr") {
-			url = FR_BASE_URL + "/api/v2/catalog/items?" + new[1]
+			url = FR_BASE_URL + "/api/v2/catalog/items?" + query
 		}
 		if strings.Contains(line, "https://www.vinted.de") {
-			url = DE_BASE_URL + "/api/v2/catalog/items?" + new[1]
+			url = DE_BASE_URL + "/api/v2/catalog/items?" + query
 		}
 		if strings.Contains(line, "https://www.vinted.pl") {
-			url = PL_BASE_URL + "/api/v2/catalog/items?" + new[1]
+			url = PL_BASE_URL + "/api/v2/catalog/items?" + query
 		}
-		links = append(links, url)
+		if strings.Contains(url, "catalog_ids") {
+			links = append(links, url)
+		} else {
+			url = strings.Replace(url, "catalog", "catalog_ids", 1)
+			links = append(links, url)
+		}
 
 	}
 	return links
