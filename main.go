@@ -148,8 +148,24 @@ func main() {
 	if err != nil {
 		log.Fatal("Error creating client to fetch session")
 	}
+	session_client3, err := NewClient("https://www.vinted.com", "All")
+	if err != nil {
+		log.Fatal("Error creating client to fetch session")
+	}
+	session_client4, err := NewClient("https://www.vinted.com", "All")
+	if err != nil {
+		log.Fatal("Error creating client to fetch session")
+	}
+	session_client5, err := NewClient("https://www.vinted.com", "All")
+	if err != nil {
+		log.Fatal("Error creating client to fetch session")
+	}
 	go get_session(session_client)
 	go get_session(session_client2)
+	go get_session(session_client3)
+	go get_session(session_client4)
+	go get_session(session_client5)
+
 	for _, monitor := range monitors {
 		go monitor.new_product_monitor(&monitor.Client)
 	}
