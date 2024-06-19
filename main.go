@@ -183,6 +183,7 @@ func parse_webhook_file() []string {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		link := scanner.Text()
+		link = strings.TrimSpace(link)
 		webhook_links = append(webhook_links, link)
 
 	}
