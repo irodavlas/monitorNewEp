@@ -159,10 +159,7 @@ func main() {
 			select {
 			case errMsg := <-error_channel:
 				fmt.Println("Error:", errMsg)
-			case session := <-session_channel:
-				if session != "" {
-					fmt.Println("Session:", session[1:10])
-				}
+
 			case MessageProd := <-product_channel:
 				send_webhook(MessageProd.Webhook, MessageProd.Currency, MessageProd.Item)
 			}
@@ -512,7 +509,7 @@ func get_session(client *Client) {
 			continue
 		}
 
-		log.Println("Succesfully fetched Session cookie")
+		log.Println("Succesfully fetched Session cookie : %s", session[1:10])
 
 		session_channel <- session
 	}
