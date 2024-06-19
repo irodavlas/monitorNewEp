@@ -101,3 +101,9 @@ func (w *Webhook) Send(u string) error {
 		time.Sleep(time.Second * 5)
 	}
 }
+
+type Message struct {
+	Item     Item
+	Currency string
+	Webhook  string
+}

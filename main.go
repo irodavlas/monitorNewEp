@@ -25,12 +25,7 @@ const (
 	DE_CURRENCY = "€"
 	PL_CURRENCY = "zł"
 )
-const (
-	UK_WEBHOOK = "https://discordapp.com/api/webhooks/1252001796361162843/5bzY987n-6-hibjcAtmJbPfZoICSfGbV6TDT_XUn_Xr7izhYxBatv4tn3RHuFxczRByZ"
-	FR_WEBHOOK = "https://discordapp.com/api/webhooks/1252276637320609803/UO43qxvtq-zJvhgjWIcE5sh8rYZNcyB8cEC1n1SHT5o8QEqA2F64gJQShg-bM-Eu3cAF"
-	DE_WEBHOOK = "https://discordapp.com/api/webhooks/1252276571931410522/elu93W1O7uqYY3kaQzaGT4xcgZhT9SPgmffjAoH_r8dlXFGNnKGfWRXD0T35CNT8klgN"
-	PL_WEBHOOK = "https://discordapp.com/api/webhooks/1252276519913525400/erbkXOsWU0QQoUqME_gbGepgqJMi5ZZywR-TcokbTUJSsEOPN5QuiT4D7JQVy1eRt1w7"
-)
+
 const (
 	UK_BASE_URL = "https://www.vinted.co.uk"
 	FR_BASE_URL = "https://www.vinted.fr"
@@ -40,20 +35,16 @@ const (
 
 var session_channel chan string
 var error_channel chan string
-var product_channel chan data.Item
+var product_channel chan data.Message
 
 var proxies []string
 
-type Links struct {
-	UK_links []string
-	FR_links []string
-	DE_links []string
-	PL_links []string
-}
 type Monitor struct {
 	Client       Client
 	FOUND_SKU    []int
 	UrlToMonitor string
+	Currency     string
+	Webhook      string
 }
 type Client struct {
 	TlsClient *tls_client.HttpClient
@@ -80,7 +71,7 @@ func NewClient(_url string, region string) (*Client, error) {
 
 	return &Client{TlsClient: &client, url: _url, Region: region}, nil
 }
-func NewMonitor(link string, clientUrl string) (*Monitor, error) {
+func NewMonitor(link string, clientUrl string, currency string, webhook string) (*Monitor, error) {
 	client, err := NewClient(clientUrl, clientUrl[len(clientUrl)-2:])
 
 	if err != nil {
@@ -90,86 +81,79 @@ func NewMonitor(link string, clientUrl string) (*Monitor, error) {
 		Client:       *client,
 		FOUND_SKU:    []int{},
 		UrlToMonitor: link,
+		Currency:     currency,
+		Webhook:      webhook,
 	}
 	return &monitor, nil
 }
 func main() {
-	var monitorsUK []Monitor
-	var monitorsFR []Monitor
-	var monitorsDE []Monitor
-	var monitorsPL []Monitor
+	var monitors []*Monitor
+
 	error_channel = make(chan string)
 	session_channel = make(chan string)
-	product_channel = make(chan data.Item)
+	product_channel = make(chan data.Message)
 
-	links := &Links{}
-
-	parse_url_file(links)
+	links := parse_url_file()
 	parse_proxy_file()
+	webhooks := parse_webhook_file()
 
-	//monitor def
+	if len(links) != len(webhooks) {
+		log.Fatal("Differences between links and webhooks files")
+	}
 
-	//Uk monitors
-	for _, url := range links.UK_links {
-		monitor, err := NewMonitor(url, UK_BASE_URL)
-		if err != nil {
-			log.Println("Error creating monitor for uk: " + err.Error())
+	// MONITOR CREATION FOR EACH LINK AND WEBHOOK
+	for i, url := range links {
+
+		client_base_url := strings.Split(url, "/api")[0]
+		if client_base_url == UK_BASE_URL {
+			monitor, err := NewMonitor(url, UK_BASE_URL, UK_CURRENCY, webhooks[i])
+			if err != nil {
+				log.Printf("Error creating monitor struct at: %s, at index: %d", url, i)
+			}
+			monitors = append(monitors, monitor)
+			continue
 		}
-		monitorsUK = append(monitorsUK, *monitor)
-	}
-	for _, url := range links.FR_links {
-		monitor, err := NewMonitor(url, FR_BASE_URL)
-		if err != nil {
-			log.Println("Error creating monitor for fr: " + err.Error())
+		if client_base_url == FR_BASE_URL {
+			monitor, err := NewMonitor(url, FR_BASE_URL, FR_CURRENCY, webhooks[i])
+			if err != nil {
+				log.Printf("Error creating monitor struct at: %s, at index: %d", url, i)
+			}
+			monitors = append(monitors, monitor)
+			continue
 		}
-		monitorsFR = append(monitorsFR, *monitor)
-	}
-	for _, url := range links.DE_links {
-		monitor, err := NewMonitor(url, DE_BASE_URL)
-		if err != nil {
-			log.Println("Error creating monitor for de: " + err.Error())
+		if client_base_url == DE_BASE_URL {
+			monitor, err := NewMonitor(url, DE_BASE_URL, DE_CURRENCY, webhooks[i])
+			if err != nil {
+				log.Printf("Error creating monitor struct at: %s, at index: %d", url, i)
+			}
+			monitors = append(monitors, monitor)
+			continue
 		}
-		monitorsDE = append(monitorsDE, *monitor)
-	}
-	for _, url := range links.PL_links {
-		monitor, err := NewMonitor(url, PL_BASE_URL)
-		if err != nil {
-			log.Println("Error creating monitor for pl: " + err.Error())
+		if client_base_url == PL_BASE_URL {
+			monitor, err := NewMonitor(url, PL_BASE_URL, PL_CURRENCY, webhooks[i])
+			if err != nil {
+				log.Printf("Error creating monitor struct at: %s, at index: %d", url, i)
+			}
+			monitors = append(monitors, monitor)
+			continue
 		}
-		monitorsPL = append(monitorsPL, *monitor)
+
 	}
 
 	session_client, err := NewClient("https://www.vinted.com", "All")
 	if err != nil {
 		log.Fatal("Error creating client to fetch session")
 	}
-
+	session_client2, err := NewClient("https://www.vinted.com", "All")
+	if err != nil {
+		log.Fatal("Error creating client to fetch session")
+	}
 	go get_session(session_client)
-	for _, monitor := range monitorsUK {
-		go monitor.new_product_monitor(&monitor.Client)
-	}
-	for _, monitor := range monitorsFR {
-		go monitor.new_product_monitor(&monitor.Client)
-	}
-	for _, monitor := range monitorsDE {
-		go monitor.new_product_monitor(&monitor.Client)
-	}
-	for _, monitor := range monitorsPL {
+	go get_session(session_client2)
+	for _, monitor := range monitors {
 		go monitor.new_product_monitor(&monitor.Client)
 	}
 
-	//go read_prods()
-	/*
-		session_client, err := NewClient("https://www.vinted.com", "All")
-		if err != nil {
-			log.Fatal("Error creating client to fetch session")
-		}
-
-
-
-			go get_session(session_client)
-			go monitors[0].new_product_monitor(&monitors[0].Client)
-	*/
 	go func() {
 		for {
 			select {
@@ -179,23 +163,8 @@ func main() {
 				if session != "" {
 					fmt.Println("Session:", session[1:10])
 				}
-			case prod := <-product_channel:
-
-				if prod.Region == "uk" {
-					send_webhook(UK_WEBHOOK, UK_CURRENCY, prod)
-				}
-				if prod.Region == "fr" {
-					send_webhook(FR_WEBHOOK, FR_CURRENCY, prod)
-
-				}
-				if prod.Region == "de" {
-					send_webhook(DE_WEBHOOK, DE_CURRENCY, prod)
-
-				}
-				if prod.Region == "pl" {
-					send_webhook(PL_WEBHOOK, PL_CURRENCY, prod)
-
-				}
+			case MessageProd := <-product_channel:
+				send_webhook(MessageProd.Webhook, MessageProd.Currency, MessageProd.Item)
 			}
 
 		}
@@ -204,6 +173,22 @@ func main() {
 	select {}
 
 }
+func parse_webhook_file() []string {
+	var webhook_links []string
+	file, err := os.Open("webhooks.txt")
+	if err != nil {
+		error_channel <- err.Error()
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		link := scanner.Text()
+		webhook_links = append(webhook_links, link)
+
+	}
+	return webhook_links
+}
+
 func formatProxy(proxy string) string {
 	// Split the proxy string by colon
 	parts := strings.Split(proxy, ":")
@@ -237,6 +222,7 @@ func parse_proxy_file() {
 	if err != nil {
 		error_channel <- err.Error()
 	}
+	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -246,37 +232,35 @@ func parse_proxy_file() {
 }
 
 // add other regions
-func parse_url_file(links *Links) {
+func parse_url_file() []string {
+	var links []string
 	file, err := os.Open("links.txt")
 	if err != nil {
 		error_channel <- err.Error()
 	}
+	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
+		var url string
 		line := scanner.Text()
 		new := strings.Split(line, "?")
 		if strings.Contains(line, "https://www.vinted.co.uk") {
-
-			url := UK_BASE_URL + "/api/v2/catalog/items?" + new[1]
-			links.UK_links = append(links.UK_links, url)
+			url = UK_BASE_URL + "/api/v2/catalog/items?" + new[1]
 		}
 		if strings.Contains(line, "https://www.vinted.fr") {
-
-			url := FR_BASE_URL + "/api/v2/catalog/items?" + new[1]
-			links.FR_links = append(links.FR_links, url)
+			url = FR_BASE_URL + "/api/v2/catalog/items?" + new[1]
 		}
 		if strings.Contains(line, "https://www.vinted.de") {
-
-			url := DE_BASE_URL + "/api/v2/catalog/items?" + new[1]
-			links.DE_links = append(links.DE_links, url)
+			url = DE_BASE_URL + "/api/v2/catalog/items?" + new[1]
 		}
 		if strings.Contains(line, "https://www.vinted.pl") {
-			url := PL_BASE_URL + "/api/v2/catalog/items?" + new[1]
-			links.PL_links = append(links.PL_links, url)
+			url = PL_BASE_URL + "/api/v2/catalog/items?" + new[1]
 		}
+		links = append(links, url)
 
 	}
-	defer file.Close()
+	return links
+
 }
 func (m *Monitor) new_product_monitor(client *Client) {
 
@@ -323,7 +307,7 @@ func (m *Monitor) new_product_monitor(client *Client) {
 
 			if err != nil {
 				error_channel <- "[" + m.Client.Region + "]" + "Retrying, Error occured while unmarshaling: " + err.Error()
-				return
+				continue
 			}
 			log.Println("[" + m.Client.Region + "]" + "Succesfully made request to products page")
 
@@ -344,17 +328,24 @@ func (m *Monitor) new_product_monitor(client *Client) {
 
 					//set few personalized informations
 					item.Region = m.Client.Region
-					DropTime := time.Now()
-
-					item.Timestamp = DropTime
-					go get_product_timestamp(*client.TlsClient, client.url+"/api/v2/items/", item.ID, session, item)
-
+					item.StringTime = time.Now().Format(time.RFC3339)
+					Message := data.Message{
+						Item:     item,
+						Currency: m.Currency,
+						Webhook:  m.Webhook,
+					}
+					product_channel <- Message
 					log.Println("["+m.Client.Region+"]"+"Found New Item with SKU: ", item.ID)
+					//DropTime := time.Now()
+					//item.Timestamp = DropTime
+					// NO NEED TO FIRE THIS IF NOT FOR TESTING PURPOSES
+					//go get_product_timestamp(*client.TlsClient, client.url+"/api/v2/items/", item.ID, session, item, m)
+
 				}
 			}
 
 		} else {
-			error_channel <- fmt.Sprintf("["+m.Client.Region+"]"+"Status Code [%d]", resp.StatusCode)
+			error_channel <- fmt.Sprintf("["+m.Client.Region+"]"+"Status Code [%d].  "+m.UrlToMonitor, resp.StatusCode)
 			time.Sleep(2 * time.Second)
 
 			continue
@@ -363,7 +354,7 @@ func (m *Monitor) new_product_monitor(client *Client) {
 	}
 
 }
-func get_product_timestamp(client tls_client.HttpClient, api_Url string, Sku int64, session string, item data.Item) {
+func get_product_timestamp(client tls_client.HttpClient, api_Url string, Sku int64, session string, item data.Item, monitor *Monitor) {
 	retries := -1
 	for {
 		retries += 1
@@ -451,7 +442,15 @@ func get_product_timestamp(client tls_client.HttpClient, api_Url string, Sku int
 		diff := item.Timestamp.Sub(createdAt)
 		item.TimeDiff = diff
 
-		product_channel <- item
+		// MESSAGE STRUCT WITH EVERYTHING INSIDE
+
+		Message := data.Message{
+			Item:     item,
+			Currency: monitor.Currency,
+			Webhook:  monitor.Webhook,
+		}
+		product_channel <- Message
+
 		log.Println("item sent closing goroutine")
 		return
 
@@ -460,7 +459,7 @@ func get_product_timestamp(client tls_client.HttpClient, api_Url string, Sku int
 }
 func get_session(client *Client) {
 	for {
-
+		rotate_proxy(*client.TlsClient)
 		req, err := http.NewRequest(http.MethodHead, client.url, nil)
 		if err != nil {
 			error_channel <- "Error fetching session with session client:" + err.Error()
@@ -487,7 +486,6 @@ func get_session(client *Client) {
 		resp, err := (*client.TlsClient).Do(req)
 		if err != nil {
 			error_channel <- "Error Making request with session client:" + err.Error()
-			session_channel <- ""
 			continue
 		}
 
@@ -497,7 +495,6 @@ func get_session(client *Client) {
 		session := extractSessionCookie(cookie)
 		if session == "" {
 			error_channel <- "No valid cookie found"
-			session_channel <- ""
 			continue
 		}
 
@@ -529,7 +526,7 @@ func send_webhook(u string, currency string, prod data.Item) {
 	embed.SetDescription("New Product Detected ")
 
 	embed.AddField("Title:", prod.Title, false)
-	embed.AddField("Time elapsed:", fmt.Sprint(prod.TimeDiff), false)
+	//embed.AddField("Time elapsed:", fmt.Sprint(prod.TimeDiff), false)
 	embed.AddField("URL: ", prod.URL, false)
 	var s = "Price " + currency
 
@@ -537,7 +534,7 @@ func send_webhook(u string, currency string, prod data.Item) {
 	var t = "Total price " + currency
 	embed.AddField(t, prod.TotalItemPrice, false)
 	embed.AddField("User :", prod.User.ProfileURL, false)
-	embed.SetFooter(prod.Timestamp.String(), "")
+	embed.SetFooter(prod.StringTime, "")
 	// Add the embed to the webhook
 	webhook.AddEmbed(embed)
 

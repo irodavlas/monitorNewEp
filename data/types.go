@@ -106,8 +106,9 @@ type Item struct {
 		Score          float64  `json:"score"`
 		MatchedQueries []string `json:"matched_queries"`
 	} `json:"search_tracking_params"`
-	Timestamp time.Time
-	TimeDiff  time.Duration
+	Timestamp  time.Time
+	StringTime string
+	TimeDiff   time.Duration
 }
 
 type ItemDetails struct {
