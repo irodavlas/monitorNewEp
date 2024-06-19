@@ -3,6 +3,7 @@ package data
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -106,4 +107,46 @@ type Message struct {
 	Item     Item
 	Currency string
 	Webhook  string
+}
+
+func Send_webhook(u string, currency string, prod Item) {
+	webhook := &Webhook{}
+
+	// Create an embed
+	embed := Embed{}
+	Title := prod.Title
+	Description := fmt.Sprintf("Posted: <t:%s:R>", prod.StringTime)
+	Price := currency + prod.Price
+	Photo := prod.Photo.URL
+	Store := prod.Region
+	Size := prod.SizeTitle
+	Condition := prod.Status
+	BrandTitle := prod.BrandTitle
+	User := prod.User.ProfileURL
+	webhook.SetContent("")
+	embed.SetTitle(Title)
+	embed.SetDescription(Description)
+	embed.SetColor(5549236)
+	embed.SetThumbnail(Photo)
+	embed.SetFooter("NRC BOT", "https://cdn.discordapp.com/attachments/1220385098541826161/1249380232163496047/NRCUK.png?ex=66671783&is=6665c603&hm=7c3a76b0ca29a947a14ca25f2791dfa8e447bbc3dd3fddfd9f065379d821bf69&")
+
+	embed.AddField("💷 Item Price", Price, false)
+
+	embed.AddField("Store", Store, false)
+	embed.AddField("📏 Size", Size, true)
+	embed.AddField("🏅 Condition", Condition, true)
+	embed.AddField("👕 Brand", BrandTitle, true)
+	embed.AddField("🌟 Seller", User, false)
+
+	// Add the embed to the webhook
+	webhook.AddEmbed(embed)
+
+	// Send the webhook to the specified URL
+	webhookURL := u
+	err := webhook.Send(webhookURL)
+	if err != nil {
+		fmt.Println("Error sending webhook:", err)
+	} else {
+		fmt.Println("Webhook sent successfully")
+	}
 }

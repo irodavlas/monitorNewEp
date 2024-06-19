@@ -161,7 +161,7 @@ func main() {
 				fmt.Println("Error:", errMsg)
 
 			case MessageProd := <-product_channel:
-				send_webhook(MessageProd.Webhook, MessageProd.Currency, MessageProd.Item)
+				data.Send_webhook(MessageProd.Webhook, MessageProd.Currency, MessageProd.Item)
 			}
 
 		}
@@ -523,38 +523,4 @@ func extractSessionCookie(cookies []string) string {
 		}
 	}
 	return ""
-}
-
-func send_webhook(u string, currency string, prod data.Item) {
-	webhook := &data.Webhook{}
-
-	// Create an embed
-	embed := data.Embed{}
-	var title = "Vinted Monitor (New Prod) [" + prod.Region + "]"
-	embed.SetTitle(title)
-	embed.SetColor(0x00ff00) // Green color
-	embed.SetThumbnail(prod.Photo.URL)
-	embed.SetDescription("New Product Detected ")
-
-	embed.AddField("Title:", prod.Title, false)
-	//embed.AddField("Time elapsed:", fmt.Sprint(prod.TimeDiff), false)
-	embed.AddField("URL: ", prod.URL, false)
-	var s = "Price " + currency
-
-	embed.AddField(s, prod.Price, false)
-	var t = "Total price " + currency
-	embed.AddField(t, prod.TotalItemPrice, false)
-	embed.AddField("User :", prod.User.ProfileURL, false)
-	embed.SetFooter(prod.StringTime, "")
-	// Add the embed to the webhook
-	webhook.AddEmbed(embed)
-
-	// Send the webhook to the specified URL
-	webhookURL := u
-	err := webhook.Send(webhookURL)
-	if err != nil {
-		fmt.Println("Error sending webhook:", err)
-	} else {
-		fmt.Println("Webhook sent successfully")
-	}
 }
