@@ -527,7 +527,7 @@ func get_session(client *Client) {
 			continue
 		}
 
-		log.Println("Succesfully fetched Session cookie : %s", session[1:10])
+		log.Println("----Fetched Session cookie----")
 
 		session_channel <- session
 	}
